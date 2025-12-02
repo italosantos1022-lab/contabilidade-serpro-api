@@ -39,10 +39,29 @@ app.use('*', (req, res) => {
         path: req.originalUrl
     });
 });
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`🚀 SERPRO Authentication API running on port ${PORT}`);
     console.log(`🔐 Authentication: http://localhost:${PORT}/api/auth/serpro`);
     console.log(`🧪 Supabase Test: http://localhost:${PORT}/api/auth/test-supabase`);
 });
+/**
+ * Handle termination signals gracefully so container orchestrators (Docker, etc.)
+ * don't leave npm reporting a SIGTERM error. Closing the HTTP server before
+ * exiting avoids abrupt termination messages in the logs.
+ */
+const shutdown = (signal) => {
+    console.log(`Received ${signal}, shutting down gracefully...`);
+    server.close(() => {
+        console.log('HTTP server closed. Goodbye!');
+        process.exit(0);
+    });
+    // Forcibly exit if shutdown takes too long
+    setTimeout(() => {
+        console.warn('Forcing shutdown after timeout.');
+        process.exit(1);
+    }, 10000).unref();
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 exports.default = app;
 //# sourceMappingURL=index.js.map
