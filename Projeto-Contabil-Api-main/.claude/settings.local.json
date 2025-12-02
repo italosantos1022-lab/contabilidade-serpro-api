@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\database/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src\\routes/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src\\config/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\database/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\database/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src\\routes/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src\\routes/**)",
+      "Read(/C:\\Projetos\\Projeto-Contabil-Api\\src\\routes/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
