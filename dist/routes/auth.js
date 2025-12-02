@@ -15,7 +15,7 @@ const router = express_1.default.Router();
  * @returns boolean indicando se o body é válido
  */
 function validateRequest(body) {
-    return !!body.idEmpresa;
+    return body && body.idEmpresa !== undefined && body.idEmpresa !== null;
 }
 /**
  * Faz o download de um certificado P12 a partir de uma URL.
@@ -48,6 +48,17 @@ function createHttpsAgentWithP12(p12Buffer, passphrase) {
         cert,
         rejectUnauthorized: false
     });
+}
+/**
+ * Tenta gerar ou reutilizar o token base64 de autenticação a partir das credenciais disponíveis.
+ */
+function resolveTokenBase64(empresa) {
+    if (empresa.tokenBase64)
+        return empresa.tokenBase64;
+    if (empresa.consumerKey && empresa.consumerSecret) {
+        return Buffer.from(`${empresa.consumerKey}:${empresa.consumerSecret}`).toString('base64');
+    }
+    return null;
 }
 /**
  * Faz a autenticação com a API SERPRO usando um token base64 de consumer key/secret e um agente HTTPS.
@@ -94,30 +105,36 @@ router.post('/serpro', async (req, res) => {
             return res.status(400).json({ error: 'idEmpresa é obrigatório no body.' });
         }
         const { idEmpresa } = req.body;
+        console.log(`Recebendo solicitação de autenticação para empresa ${idEmpresa}`);
         // Buscar dados na tabela contabilidade
         const { data: empresa, error } = await supabase_1.supabase
             .from('contabilidade')
             .select('certitifcadoP12, senha, consumerKey, consumerSecret, tokenBase64')
             .eq('id', idEmpresa)
             .single();
-        if (error || !empresa) {
+        if (error) {
+            console.error('Erro ao buscar empresa no Supabase:', error);
+            return res.status(500).json({ error: 'Erro ao consultar a empresa no Supabase', details: error.message });
+        }
+        if (!empresa) {
             return res.status(404).json({ error: 'Empresa não encontrada na tabela contabilidade' });
         }
         // Verificar se campos necessários estão presentes
         if (!empresa.certitifcadoP12 || !empresa.senha) {
             return res.status(400).json({ error: 'Certificado P12 ou senha ausentes' });
         }
-        if (!empresa.tokenBase64) {
-            return res.status(400).json({ error: 'tokenBase64 não informado na empresa' });
+        const tokenBase64 = resolveTokenBase64(empresa);
+        if (!tokenBase64) {
+            return res.status(400).json({ error: 'Credenciais SERPRO ausentes: informe tokenBase64 ou consumerKey/consumerSecret' });
         }
         // Baixar e processar o certificado P12
         const p12Buffer = await downloadP12Certificate(empresa.certitifcadoP12);
         const httpsAgent = createHttpsAgentWithP12(p12Buffer, empresa.senha);
         // Autenticar com SERPRO e DataValid usando o token base64
-        const serpro = await authenticateWithSerpro(empresa.tokenBase64, httpsAgent);
-        const datavalid = await authenticateDataValid(empresa.tokenBase64);
+        const serpro = await authenticateWithSerpro(tokenBase64, httpsAgent);
+        const datavalid = await authenticateDataValid(tokenBase64);
         // Atualizar tabela com os novos tokens
-        await supabase_1.supabase
+        const { error: updateError } = await supabase_1.supabase
             .from('contabilidade')
             .update({
             tokenJwt: serpro.jwt_token,
@@ -125,6 +142,10 @@ router.post('/serpro', async (req, res) => {
             datavalid_jwt: datavalid.access_token
         })
             .eq('id', idEmpresa);
+        if (updateError) {
+            console.error('Erro ao atualizar tokens no Supabase:', updateError);
+            return res.status(500).json({ error: 'Falha ao salvar tokens no Supabase', details: updateError.message });
+        }
         return res.json({
             success: true,
             message: 'Tokens gerados e armazenados com sucesso',
@@ -132,6 +153,7 @@ router.post('/serpro', async (req, res) => {
         });
     }
     catch (e) {
+        console.error('Falha geral no processo de autenticação:', e);
         return res.status(500).json({ error: 'Falha geral no processo', details: e.message });
     }
 });
