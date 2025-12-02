@@ -20,6 +20,10 @@ app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
 // Routes
 app.use('/api/auth', auth_1.default);
+// Health check for orchestration/monitoring tools
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
 // Error handling
 app.use((err, req, res, next) => {
     console.error(err.stack);
