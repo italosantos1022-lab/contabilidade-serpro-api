@@ -50,6 +50,7 @@ const server = app.listen(PORT, () => {
  * exiting avoids abrupt termination messages in the logs.
  */
 let isShuttingDown = false;
+const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 10000;
 const shutdown = (signal) => {
     if (isShuttingDown) {
         console.log(`Shutdown already in progress (signal: ${signal}).`);
@@ -57,24 +58,22 @@ const shutdown = (signal) => {
     }
     isShuttingDown = true;
     console.log(`Received ${signal}, shutting down gracefully...`);
-    server.close((err) => {
-        if (err) {
-            console.error('Error closing HTTP server:', err);
-            process.exitCode = 1;
-        }
-        else {
-            console.log('HTTP server closed. Goodbye!');
-            process.exitCode = 0;
-        }
-        process.exit();
-    });
-    // Forcibly exit if shutdown takes too long
-    setTimeout(() => {
+    const shutdownTimer = setTimeout(() => {
         console.warn('Forcing shutdown after timeout.');
         process.exit(1);
-    }, 10000).unref();
+    }, GRACEFUL_SHUTDOWN_TIMEOUT_MS).unref();
+    server.close((err) => {
+        clearTimeout(shutdownTimer);
+        if (err) {
+            console.error('Error closing HTTP server:', err);
+            process.exit(1);
+            return;
+        }
+        console.log('HTTP server closed. Goodbye!');
+        process.exit(0);
+    });
 };
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 exports.default = app;
 //# sourceMappingURL=index.js.map
